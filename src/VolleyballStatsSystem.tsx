@@ -1,22 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-  AppBar,
-  Toolbar,
-  IconButton,
-  Typography,
-  TextField,
-  Grid,
-  Drawer,
-  List,
-  ListItem,
-  ListItemText,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  AppBar, Toolbar, IconButton, Typography, TextField, Grid,
+  Drawer, List, ListItem, ListItemText, Paper, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, Box, Tabs, Tab
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 
@@ -42,11 +28,11 @@ interface PlayerStats {
 
 type SavedSet = {
   name: string;
+  team1Name: string;
+  team2Name: string;
   team1: PlayerStats[];
   team2: PlayerStats[];
 };
-
-const createInitialStats = (): PlayerStats[] => [];
 
 const columns: (keyof PlayerStats)[] = [
   "player", "number", "position", "K", "E", "TA", "PCT",
@@ -54,33 +40,22 @@ const columns: (keyof PlayerStats)[] = [
 ];
 
 const columnDescriptions: Record<string, string> = {
-  player: "Player Name",
-  number: "Player Number",
-  position: "Player Position",
-  K: "Kills",
-  E: "Errors",
-  TA: "Total Attacks",
-  PCT: "Hitting Percentage",
-  A: "Assists",
-  SA: "Service Aces",
-  SE: "Service Errors",
-  RE: "Reception Errors",
-  D: "Digs",
-  BS: "Block Solo",
-  BA: "Block Assist",
-  BE: "Block Errors",
-  BHE: "Ball Handling Errors",
+  player: "Player Name", number: "Player Number", position: "Player Position",
+  K: "Kills", E: "Errors", TA: "Total Attacks", PCT: "Hitting Percentage",
+  A: "Assists", SA: "Service Aces", SE: "Service Errors", RE: "Reception Errors",
+  D: "Digs", BS: "Block Solo", BA: "Block Assist", BE: "Block Errors", BHE: "Ball Handling Errors"
 };
 
 export default function VolleyballStatTracker() {
   const [game, setGame] = useState("");
   const [team1, setTeam1] = useState("Team 1");
   const [team2, setTeam2] = useState("Team 2");
-  const [team1Stats, setTeam1Stats] = useState<PlayerStats[]>(createInitialStats());
-  const [team2Stats, setTeam2Stats] = useState<PlayerStats[]>(createInitialStats());
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [setName, setSetName] = useState("Set 1");
+  const [team1Stats, setTeam1Stats] = useState<PlayerStats[]>([]);
+  const [team2Stats, setTeam2Stats] = useState<PlayerStats[]>([]);
   const [sets, setSets] = useState<SavedSet[]>([]);
-  const [selectedSetIndex, setSelectedSetIndex] = useState<number | null>(null);
+  const [setTabIndex, setSetTabIndex] = useState(0);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("volleyball_sets");
@@ -88,7 +63,7 @@ export default function VolleyballStatTracker() {
       try {
         setSets(JSON.parse(stored));
       } catch (e) {
-        console.error("Failed to parse sets from storage", e);
+        console.error("Failed to parse stored sets", e);
       }
     }
   }, []);
@@ -99,12 +74,9 @@ export default function VolleyballStatTracker() {
 
   const addPlayer = (team: "team1" | "team2") => {
     const newPlayer: PlayerStats = {
-      id: Date.now(),
-      player: "",
-      number: "",
-      position: "",
-      K: 0, E: 0, TA: 0, PCT: "",
-      A: 0, SA: 0, SE: 0, RE: 0, D: 0, BS: 0, BA: 0, BE: 0, BHE: 0,
+      id: Date.now(), player: "", number: "", position: "",
+      K: 0, E: 0, TA: 0, PCT: "", A: 0, SA: 0, SE: 0, RE: 0,
+      D: 0, BS: 0, BA: 0, BE: 0, BHE: 0
     };
     team === "team1"
       ? setTeam1Stats((prev) => [...prev, newPlayer])
@@ -123,89 +95,21 @@ export default function VolleyballStatTracker() {
     field: keyof PlayerStats,
     value: string
   ) => {
-    const data = team === "team1" ? [...team1Stats] : [...team2Stats];
-    const updated = { ...data[index], [field]: field === "PCT" || ["player", "number", "position"].includes(field) ? value : parseInt(value) || 0 };
+    const stats = team === "team1" ? [...team1Stats] : [...team2Stats];
+    const updated = {
+      ...stats[index],
+      [field]: ["player", "number", "position", "PCT"].includes(field)
+        ? value
+        : parseInt(value) || 0,
+    };
 
     if (typeof updated.K === "number" && typeof updated.E === "number") {
       updated.TA = updated.K + updated.E;
-      updated.PCT = updated.TA !== 0 ? ((updated.K - updated.E) / updated.TA).toFixed(3) : "";
+      updated.PCT = updated.TA ? ((updated.K - updated.E) / updated.TA).toFixed(3) : "";
     }
 
-    data[index] = updated;
-    team === "team1" ? setTeam1Stats(data) : setTeam2Stats(data);
-  };
-
-  const exportCSV = () => {
-    const formatRow = (row: PlayerStats) => columns.map(col => row[col]).join(",");
-    const csvLines = [
-      `Game: ${game}`,
-      `${team1} Stats:`,
-      columns.join(","),
-      ...team1Stats.map(formatRow),
-      "",
-      `${team2} Stats:`,
-      columns.join(","),
-      ...team2Stats.map(formatRow)
-    ];
-    const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const fileName = `${game || 'Game'}_${team1}_${team2}.csv`.replace(/\s+/g, '_');
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportSingleSetCSV = (set: SavedSet, index: number) => {
-    const formatRow = (row: PlayerStats) => columns.map(col => row[col]).join(",");
-    const csvLines = [
-      `Set ${index + 1}: ${set.name}`,
-      `${team1} Stats:`,
-      columns.join(","),
-      ...set.team1.map(formatRow),
-      "",
-      `${team2} Stats:`,
-      columns.join(","),
-      ...set.team2.map(formatRow)
-    ];
-    const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const fileName = `${game || 'Game'}_${team1}_${team2}_Set${index + 1}.csv`.replace(/\s+/g, '_');
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportAllSetsCSV = () => {
-    const formatRow = (row: PlayerStats) => columns.map(col => row[col]).join(",");
-    const csvLines: string[] = [];
-
-    sets.forEach((set, i) => {
-      csvLines.push(`Set ${i + 1}: ${set.name}`);
-      csvLines.push(`${team1} Stats:`);
-      csvLines.push(columns.join(","));
-      csvLines.push(...set.team1.map(formatRow));
-      csvLines.push("");
-      csvLines.push(`${team2} Stats:`);
-      csvLines.push(columns.join(","));
-      csvLines.push(...set.team2.map(formatRow));
-      csvLines.push("");
-    });
-
-    const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const fileName = `${game || 'Game'}_${team1}_${team2}_ALL_SETS.csv`.replace(/\s+/g, '_');
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", fileName);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    stats[index] = updated;
+    team === "team1" ? setTeam1Stats(stats) : setTeam2Stats(stats);
   };
 
   const renderTable = (team: "team1" | "team2", stats: PlayerStats[]) => {
@@ -218,24 +122,32 @@ export default function VolleyballStatTracker() {
 
     return (
       <>
-        <TableContainer component={Paper} sx={{ mt: 2, maxHeight: 300, overflowY: 'auto' }}>
+        <TableContainer component={Paper} sx={{ mt: 2, maxHeight: 300 }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
                 {columns.map((col) => (
-                  <TableCell key={col} title={columnDescriptions[col]}>{col}</TableCell>
+                  <TableCell key={col} title={columnDescriptions[col]}>
+                    {col === "player" ? "Player" :
+                      col === "number" ? "Number" :
+                        col === "position" ? "Position" : col}
+                  </TableCell>
                 ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              {stats.map((row, rowIndex) => (
+              {stats.map((row, i) => (
                 <TableRow key={row.id}>
                   {columns.map((col) => (
                     <TableCell key={col}>
                       <TextField
                         value={row[col]}
                         type={typeof row[col] === "number" && col !== "PCT" ? "number" : "text"}
-                        onChange={(e) => (col === "PCT" || col === "TA") ? undefined : handleChange(team, rowIndex, col, e.target.value)}
+                        onChange={(e) =>
+                          ["PCT", "TA"].includes(col)
+                            ? undefined
+                            : handleChange(team, i, col, e.target.value)
+                        }
                         variant="standard"
                         inputProps={{ min: 0, readOnly: col === "PCT" || col === "TA" }}
                       />
@@ -255,12 +167,111 @@ export default function VolleyballStatTracker() {
             </tfoot>
           </Table>
         </TableContainer>
-        <div style={{ display: 'flex', gap: '8px', marginTop: 8 }}>
+        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
           <button onClick={() => addPlayer(team)}>Add Player</button>
           <button onClick={() => removePlayer(team)}>Remove Player</button>
-        </div>
+        </Box>
       </>
     );
+  };
+
+  const exportSingleSetCSV = (set: SavedSet) => {
+    const formatRow = (row: PlayerStats) => columns.map(col => row[col]).join(",");
+    const lines = [
+      `${set.name}`,
+      `${set.team1Name} Stats:`,
+      columns.join(","),
+      ...set.team1.map(formatRow),
+      "",
+      `${set.team2Name} Stats:`,
+      columns.join(","),
+      ...set.team2.map(formatRow),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const fileName = `${game}_${set.name}_${set.team1Name}_${set.team2Name}`.replace(/\s+/g, "_") + ".csv";
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportAllSetsCSV = () => {
+    const formatRow = (row: PlayerStats) => columns.map(col => row[col]).join(",");
+    const lines: string[] = [];
+
+    sets.forEach((set, i) => {
+      lines.push(`Set ${i + 1}: ${set.name}`);
+      lines.push(`${set.team1Name} Stats:`);
+      lines.push(columns.join(","));
+      lines.push(...set.team1.map(formatRow));
+      lines.push("");
+      lines.push(`${set.team2Name} Stats:`);
+      lines.push(columns.join(","));
+      lines.push(...set.team2.map(formatRow));
+      lines.push("");
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const fileName = `${game || 'All_Sets'}`.replace(/\s+/g, "_") + ".csv";
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportAllSetsAsJSON = () => {
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      game,
+      sets,
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const fileName = `${game || "Volleyball"}_All_Sets.json`.replace(/\s+/g, "_");
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const importAllSetsFromJSON = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+
+        if (!Array.isArray(data.sets)) {
+          throw new Error("Invalid format: missing 'sets' array.");
+        }
+
+        const shouldMerge = confirm("Merge imported sets with current sets?\nPress Cancel to overwrite.");
+
+        if (shouldMerge) {
+          setSets(prev => [...prev, ...data.sets]);
+        } else {
+          setSets(data.sets);
+          setGame(data.game || "");
+        }
+
+        setSetTabIndex(0);
+      } catch (err) {
+        alert("Error importing JSON: " + (err as Error).message);
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -270,9 +281,7 @@ export default function VolleyballStatTracker() {
           <IconButton edge="start" color="inherit" onClick={() => setDrawerOpen(true)}>
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Volleyball Stat Tracker
-          </Typography>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>Volleyball Stat Tracker</Typography>
         </Toolbar>
       </AppBar>
 
@@ -287,93 +296,162 @@ export default function VolleyballStatTracker() {
         </List>
       </Drawer>
 
-      <div style={{ overflowY: "auto", flexGrow: 1, padding: "16px" }}>
+      <Box sx={{ overflowY: "auto", flexGrow: 1, p: 2 }}>
         <Grid container spacing={2}>
-          <Grid>
-            <TextField label="Game" fullWidth value={game} onChange={(e) => setGame(e.target.value)} />
-          </Grid>
-          <Grid>
-            <TextField label="Team 1" fullWidth value={team1} onChange={(e) => setTeam1(e.target.value)} />
-          </Grid>
-          <Grid>
-            <TextField label="Team 2" fullWidth value={team2} onChange={(e) => setTeam2(e.target.value)} />
+          <Grid item xs={12} md={4}>
+            <TextField fullWidth label="Game" value={game} onChange={e => setGame(e.target.value)} />
           </Grid>
         </Grid>
 
-        <button onClick={exportCSV} style={{ marginTop: 24, marginBottom: 8 }} disabled>
-          Export to CSV
-        </button>
-        <button onClick={() =>
-          setSets([...sets, {
-            name: `Set ${sets.length + 1}`,
-            team1: [...team1Stats],
-            team2: [...team2Stats]
-          }])
-        } style={{ marginBottom: 8 }}>
-          Save as New Set
-        </button>
-        <button onClick={exportAllSetsCSV} style={{ marginBottom: 16 }}>
-          Export All Sets to CSV
-        </button>
+        <Box sx={{ mt: 3, mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+          <button onClick={() => {
+            const newSet: SavedSet = {
+              name: setName,
+              team1Name: team1,
+              team2Name: team2,
+              team1: [...team1Stats],
+              team2: [...team2Stats],
+            };
+            setSets(prev => [...prev, newSet]);
 
-        <Typography variant="h6" sx={{ mt: 2 }}>{team1} Stats</Typography>
-        {renderTable("team1", team1Stats)}
+            const match = setName.match(/^Set (\d+)$/);
+            const nextNum = match ? parseInt(match[1]) + 1 : sets.length + 2;
+            setSetName(`Set ${nextNum}`);
+          }}>
+            Save as New Set
+          </button>
 
-        <Typography variant="h6" sx={{ mt: 4 }}>{team2} Stats</Typography>
-        {renderTable("team2", team2Stats)}
+          <button onClick={exportAllSetsCSV}>
+            Export All Sets to CSV
+          </button>
 
-        {sets.length > 0 && (
+          <button onClick={exportAllSetsAsJSON}>
+            Export All Sets as JSON
+          </button>
+
+          <label style={{ cursor: "pointer" }}>
+            <span style={{
+              padding: "6px 12px",
+              border: "1px solid #ccc",
+              borderRadius: 4,
+              display: "inline-block",
+              backgroundColor: "#f5f5f5"
+            }}>
+              Import Sets from JSON
+            </span>
+            <input
+              type="file"
+              accept=".json"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importAllSetsFromJSON(file);
+                e.target.value = ""; // Reset for next upload
+              }}
+            />
+          </label>
+        </Box>
+
+
+        <Typography variant="h6" sx={{ mt: 5 }}>Match Sets</Typography>
+        <Tabs value={setTabIndex} onChange={(e, i) => setSetTabIndex(i)} sx={{ mb: 2 }}>
+          <Tab label="Current" />
+          {sets.map((set, i) => (
+            <Tab
+              key={i + 1}
+              label={`${set.name}: ${set.team1Name} vs ${set.team2Name}`}
+            />
+          ))}
+        </Tabs>
+
+        {setTabIndex === 0 && (
           <>
-            <Typography variant="h6" sx={{ mt: 4 }}>View Saved Set</Typography>
-            <TextField
-              select
-              label="Select Set"
-              value={selectedSetIndex !== null ? selectedSetIndex : ""}
-              onChange={(e) => setSelectedSetIndex(parseInt(e.target.value))}
-              fullWidth
-              SelectProps={{ native: true }}
-              sx={{ maxWidth: 300, mb: 2 }}
-            >
-              <option value="">-- Select a Set --</option>
-              {sets.map((set, i) => (
-                <option key={i} value={i}>{set.name}</option>
-              ))}
-            </TextField>
-
-            {selectedSetIndex !== null && (
-              <>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid item xs={12} md={4}>
                 <TextField
-                  label="Rename Set"
                   fullWidth
-                  sx={{ mb: 2, maxWidth: 300 }}
-                  value={sets[selectedSetIndex].name}
-                  onChange={(e) => {
-                    const updated = [...sets];
-                    updated[selectedSetIndex].name = e.target.value;
-                    setSets(updated);
-                  }}
+                  label="Set Name"
+                  value={setName}
+                  onChange={(e) => setSetName(e.target.value)}
                 />
-                <button onClick={() => {
-                  const updated = [...sets];
-                  updated.splice(selectedSetIndex, 1);
-                  setSets(updated);
-                  setSelectedSetIndex(null);
-                }}>Delete This Set</button>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField fullWidth label="Team 1" value={team1} onChange={(e) => setTeam1(e.target.value)} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <TextField fullWidth label="Team 2" value={team2} onChange={(e) => setTeam2(e.target.value)} />
+              </Grid>
+            </Grid>
 
-                <Typography variant="body2" sx={{ fontWeight: "bold", mt: 2 }}>{team1} Stats</Typography>
-                {renderTable("team1", sets[selectedSetIndex].team1)}
+            <Typography variant="h6">{team1} Stats</Typography>
+            {renderTable("team1", team1Stats)}
 
-                <Typography variant="body2" sx={{ fontWeight: "bold", mt: 2 }}>{team2} Stats</Typography>
-                {renderTable("team2", sets[selectedSetIndex].team2)}
-
-                <button onClick={() => exportSingleSetCSV(sets[selectedSetIndex], selectedSetIndex)}>
-                  Export Set {selectedSetIndex + 1} to CSV
-                </button>
-              </>
-            )}
+            <Typography variant="h6" sx={{ mt: 4 }}>{team2} Stats</Typography>
+            {renderTable("team2", team2Stats)}
           </>
         )}
-      </div>
+
+        {setTabIndex > 0 && sets[setTabIndex - 1] && (
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              label="Rename Set"
+              value={sets[setTabIndex - 1].name}
+              onChange={(e) => {
+                const updated = [...sets];
+                updated[setTabIndex - 1].name = e.target.value;
+                setSets(updated);
+              }}
+              sx={{ maxWidth: 300, mb: 2 }}
+              fullWidth
+            />
+            <TextField
+              label="Team 1 Name"
+              value={sets[setTabIndex - 1].team1Name}
+              onChange={(e) => {
+                const updated = [...sets];
+                updated[setTabIndex - 1].team1Name = e.target.value;
+                setSets(updated);
+              }}
+              sx={{ mb: 1, mr: 2 }}
+            />
+            <TextField
+              label="Team 2 Name"
+              value={sets[setTabIndex - 1].team2Name}
+              onChange={(e) => {
+                const updated = [...sets];
+                updated[setTabIndex - 1].team2Name = e.target.value;
+                setSets(updated);
+              }}
+              sx={{ mb: 2 }}
+            />
+            <br />
+            <button
+              onClick={() => {
+                const updated = [...sets];
+                updated.splice(setTabIndex - 1, 1);
+                setSets(updated);
+                setSetTabIndex(0);
+              }}
+              style={{ marginRight: 12 }}
+            >
+              Delete This Set
+            </button>
+            <button onClick={() => exportSingleSetCSV(sets[setTabIndex - 1])}>
+              Export Set to CSV
+            </button>
+
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 3 }}>
+              {sets[setTabIndex - 1].team1Name} Stats
+            </Typography>
+            {renderTable("team1", sets[setTabIndex - 1].team1)}
+
+            <Typography variant="body2" sx={{ fontWeight: 'bold', mt: 3 }}>
+              {sets[setTabIndex - 1].team2Name} Stats
+            </Typography>
+            {renderTable("team2", sets[setTabIndex - 1].team2)}
+          </Box>
+        )}
+      </Box>
     </div>
   );
 }
