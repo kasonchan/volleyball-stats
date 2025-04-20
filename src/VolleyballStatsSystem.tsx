@@ -40,7 +40,7 @@ const columns: (keyof PlayerStats)[] = [
 ];
 
 const columnDescriptions: Record<string, string> = {
-  player: "Player Name", number: "Player Number", position: "Player Position",
+  player: "Player Name", number: "Player Number", position: "Player Position (OH: Outside Hitter, S: Setter, MB: Middle Blocker, OP: Opposite, L: Libero, DS: Defensive Specialist)",
   K: "Kills", E: "Errors", TA: "Total Attacks", PCT: "Hitting Percentage",
   A: "Assists", SA: "Service Aces", SE: "Service Errors", RE: "Reception Errors",
   D: "Digs", BS: "Block Solo", BA: "Block Assist", BE: "Block Errors", BHE: "Ball Handling Errors"
@@ -140,17 +140,35 @@ export default function VolleyballStatTracker() {
                 <TableRow key={row.id}>
                   {columns.map((col) => (
                     <TableCell key={col}>
-                      <TextField
-                        value={row[col]}
-                        type={typeof row[col] === "number" && col !== "PCT" ? "number" : "text"}
-                        onChange={(e) =>
-                          ["PCT", "TA"].includes(col)
-                            ? undefined
-                            : handleChange(team, i, col, e.target.value)
-                        }
-                        variant="standard"
-                        inputProps={{ min: 0, readOnly: col === "PCT" || col === "TA" }}
-                      />
+                      {col === "position" ? (
+                        <TextField
+                          select
+                          value={row[col]}
+                          onChange={(e) => handleChange(team, i, col, e.target.value)}
+                          variant="standard"
+                          SelectProps={{ native: true }}
+                        >
+                          <option value="">--</option>
+                          <option value="OH">OH</option>
+                          <option value="S">S</option>
+                          <option value="MB">MB</option>
+                          <option value="OP">OP</option>
+                          <option value="L">L</option>
+                          <option value="DS">DS</option>
+                        </TextField>
+                      ) : (
+                        <TextField
+                          value={row[col]}
+                          type={typeof row[col] === "number" && col !== "PCT" ? "number" : "text"}
+                          onChange={(e) =>
+                            ["PCT", "TA"].includes(col)
+                              ? undefined
+                              : handleChange(team, i, col, e.target.value)
+                          }
+                          variant="standard"
+                          inputProps={{ min: 0, readOnly: col === "PCT" || col === "TA" }}
+                        />
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
