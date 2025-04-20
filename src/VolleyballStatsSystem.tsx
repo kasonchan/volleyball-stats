@@ -380,7 +380,42 @@ export default function VolleyballStatTracker() {
               label={`${set.name}: ${set.team1Name} vs ${set.team2Name}`}
             />
           ))}
+          <Tab label="Aggregate" />
         </Tabs>
+
+        {setTabIndex === sets.length + 1 && (
+          <>
+            <Typography variant="h6" sx={{ mb: 2 }}>All Sets Combined</Typography>
+            <TableContainer component={Paper} sx={{ mt: 2 }}>
+              <Table size="small" stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Set</TableCell>
+                    {columns.map((col) => (
+                      <TableCell key={col} title={columnDescriptions[col]}>
+                        {col === "player" ? "Player" :
+                          col === "number" ? "Number" :
+                            col === "position" ? "Position" : col}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sets.flatMap((set, setIndex) =>
+                    [...set.team1, ...set.team2].map((row, i) => (
+                      <TableRow key={row.id + '-' + setIndex}>
+                        <TableCell>{set.name}</TableCell>
+                        {columns.map((col) => (
+                          <TableCell key={col}>{row[col]}</TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </>
+        )}
 
         {setTabIndex === 0 && (
           <>
