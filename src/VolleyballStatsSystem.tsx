@@ -371,7 +371,7 @@ export default function VolleyballStatTracker() {
         </Box>
 
         <Typography variant="h6" sx={{ mt: 5 }}>Match Sets</Typography>
-        <Tabs value={setTabIndex} onChange={(e, i) => setSetTabIndex(i)} sx={{ mb: 2 }}>
+        <Tabs value={setTabIndex} onChange={(e, i) => setSetTabIndex(i)} sx={{ mb: 2 }} variant="scrollable" scrollButtons="auto">
           <Tab label="Current" />
           {sets.map((set, i) => (
             <Tab
