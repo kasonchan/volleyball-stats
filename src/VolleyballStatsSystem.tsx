@@ -5,7 +5,7 @@ import {
   TableCell, TableContainer, TableHead, TableRow, Box, Tabs, Tab
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
 interface PlayerStats {
   id: number;
   player: string;
@@ -370,7 +370,6 @@ export default function VolleyballStatTracker() {
           </label>
         </Box>
 
-
         <Typography variant="h6" sx={{ mt: 5 }}>Match Sets</Typography>
         <Tabs value={setTabIndex} onChange={(e, i) => setSetTabIndex(i)} sx={{ mb: 2 }}>
           <Tab label="Current" />
@@ -386,34 +385,37 @@ export default function VolleyballStatTracker() {
         {setTabIndex === sets.length + 1 && (
           <>
             <Typography variant="h6" sx={{ mb: 2 }}>All Sets Combined</Typography>
-            <TableContainer component={Paper} sx={{ mt: 2 }}>
-              <Table size="small" stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Set</TableCell>
-                    {columns.map((col) => (
-                      <TableCell key={col} title={columnDescriptions[col]}>
-                        {col === "player" ? "Player" :
-                          col === "number" ? "Number" :
-                            col === "position" ? "Position" : col}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sets.flatMap((set, setIndex) =>
-                    [...set.team1, ...set.team2].map((row, i) => (
-                      <TableRow key={row.id + '-' + setIndex}>
-                        <TableCell>{set.name}</TableCell>
-                        {columns.map((col) => (
-                          <TableCell key={col}>{row[col]}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+
+            <Box sx={{ height: 500 }}>
+              <DataGrid
+                rows={sets.flatMap((set, index) =>
+                  [...set.team1, ...set.team2].map((row) => ({
+                    ...row,
+                    id: `${set.name}-${row.id}`,
+                    set: set.name
+                  }))
+                )}
+                columns={[
+                  { field: "set", headerName: "Set", width: 120 },
+                  ...columns.map((col): GridColDef => ({
+                    field: col,
+                    headerName:
+                      col === "player" ? "Player" :
+                        col === "number" ? "Number" :
+                          col === "position" ? "Position" : col,
+                    width: 100,
+                    sortable: true,
+                    filterable: true,
+                    editable: false,
+                  })),
+                ]}
+                disableRowSelectionOnClick
+                pageSizeOptions={[5, 10, 25]}
+                initialState={{
+                  pagination: { paginationModel: { pageSize: 10, page: 0 } }
+                }}
+              />
+            </Box>
           </>
         )}
 
